@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Ledger</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <span class="nav-title">Ledger</span>
+      <div class="nav-actions">
+        <span id="sync-status" class="sync-pill" data-kind="local">Local</span>
+        <button id="export-csv" class="btn tinted">CSV</button>
+        <button id="export-json" class="btn tinted">JSON</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="hero-head">
+        <p class="hero-eyebrow" id="hero-range">All time</p>
+        <div class="segmented" id="range-control" role="tablist" aria-label="Time range">
+          <button class="seg is-active" data-range="all">All</button>
+          <button class="seg" data-range="month">Month</button>
+          <button class="seg" data-range="week">Week</button>
+        </div>
+      </div>
+      <h1 class="hero-total" id="hero-total">$0.00</h1>
+      <p class="hero-sub" id="hero-sub">0 transactions</p>
+    </header>
+
+    <section class="widgets" aria-label="Summary">
+      <div class="widget">
+        <span class="widget-label">This month</span>
+        <span class="widget-value" id="stat-month">$0.00</span>
+      </div>
+      <div class="widget">
+        <span class="widget-label">Last 7 days</span>
+        <span class="widget-value" id="stat-week">$0.00</span>
+      </div>
+      <div class="widget">
+        <span class="widget-label">Top category</span>
+        <span class="widget-value small" id="stat-top">—</span>
+      </div>
+      <div class="widget">
+        <span class="widget-label">Average</span>
+        <span class="widget-value" id="stat-avg">$0.00</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Add Expense</h2>
+      <form id="expense-form" class="form">
+        <div class="form-row amount-row">
+          <label for="amount">Amount</label>
+          <div class="control amount-control">
+            <span class="cur">₹</span>
+            <input id="amount" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0.00" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="category">Category</label>
+          <div class="control">
+            <select id="category" required></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="description">Note</label>
+          <div class="control">
+            <input id="description" type="text" placeholder="e.g. Lunch" maxlength="80" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="date">Date</label>
+          <div class="control">
+            <input id="date" type="date" required />
+          </div>
+        </div>
+        <button type="submit" class="btn filled">Add Expense</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Statistics</h2>
+      <div class="stats-layout">
+        <div id="donut" class="donut"></div>
+        <div id="stats" class="stats"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2 class="section-title">Monthly Trend</h2>
+        <span id="trend-delta" class="pill-light">—</span>
+      </div>
+      <div id="trend" class="trend"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2 class="section-title">History</h2>
+        <select id="category-filter" class="select-inline" aria-label="Filter by category"></select>
+      </div>
+      <ul id="expense-list" class="list"></ul>
+      <p id="empty-state" class="empty">No expenses yet. Add your first one above.</p>
+    </section>
+
+    <footer class="footer">
+      <button id="clear-all" class="btn text-danger">Delete all data</button>
+      <p class="footer-note">Ledger · <span id="storage-note">stored locally in your browser</span></p>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
