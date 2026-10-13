@@ -315,21 +315,23 @@ main {
 
 .amount-row input { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
 .amount-control {
-  align-items: baseline;
-  gap: 6px;
+  align-items: center;
+  gap: 2px;
 }
 .amount-control .cur {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
-  color: var(--label-tertiary);
+  color: var(--label-secondary);
   line-height: 1;
-  font-variant-numeric: tabular-nums;
+  padding-bottom: 0;
+  margin-right: -2px;
 }
 .amount-row input {
   font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.05;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  max-width: 190px;
 }
 
 .select-inline {
