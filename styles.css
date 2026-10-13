@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: light dark;
 
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
@@ -314,7 +314,23 @@ main {
 .form-row:focus-within label { color: var(--label); }
 
 .amount-row input { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
-.amount-control .cur { font-size: 26px; font-weight: 600; color: var(--label-tertiary); }
+.amount-control {
+  align-items: baseline;
+  gap: 6px;
+}
+.amount-control .cur {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--label-tertiary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.amount-row input {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
 
 .select-inline {
   font: inherit;
