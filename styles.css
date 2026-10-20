@@ -208,55 +208,6 @@ body {
   gap: 6px;
 }
 
-.nav-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-  margin-inline: 6px;
-}
-
-.sync-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.sync-pill::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ink-4);
-  transition: background 0.3s ease;
-}
-.sync-pill[data-kind="cloud"] {
-  color: var(--ink-2);
-}
-.sync-pill[data-kind="cloud"]::before {
-  background: var(--positive);
-  box-shadow: 0 0 0 3px var(--positive-soft);
-}
-.sync-pill[data-kind="loading"]::before {
-  background: var(--accent-bright);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-.sync-pill[data-kind="error"] {
-  color: var(--negative);
-}
-.sync-pill[data-kind="error"]::before {
-  background: var(--negative);
-}
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
-  }
-}
-
 /* --------------------------------------------------------------------------
    5. Buttons
    -------------------------------------------------------------------------- */
@@ -552,7 +503,7 @@ main > .panel,
    -------------------------------------------------------------------------- */
 .bento {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: clamp(12px, 1.6vw, 20px);
 }
 
@@ -589,6 +540,10 @@ main > .panel,
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .metric-value-sm {
   font-size: clamp(1.125rem, 1.4vw, 1.375rem);
@@ -1005,6 +960,9 @@ main > .panel,
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .row-amount {
   font-family: var(--font-mono);
@@ -1013,6 +971,7 @@ main > .panel,
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .row-actions {
@@ -1226,7 +1185,7 @@ main > .panel,
     grid-template-columns: 1fr;
   }
   .bento {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1236,12 +1195,22 @@ main > .panel,
     align-items: flex-start;
     gap: 14px;
   }
+  .hero-total {
+    font-size: clamp(1.75rem, 8.6vw, 2.75rem);
+  }
   .bento {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
-  .metric-wide {
-    grid-column: 1 / -1;
+  .metric {
+    padding: 15px;
+    gap: 4px;
+  }
+  .metric-value {
+    font-size: clamp(0.95rem, 4.4vw, 1.375rem);
+  }
+  .metric-hint {
+    display: none;
   }
   .form-grid {
     grid-template-columns: 1fr;

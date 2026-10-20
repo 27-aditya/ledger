@@ -1,6 +1,3 @@
-const cfg = window.LEDGER_CONFIG || {};
-const CLOUD = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey);
-const TABLE = cfg.table || "expenses";
 const LOCAL_KEY = "ledger:data:v1";
 
 const CATEGORIES = [
@@ -89,71 +86,7 @@ function formatDate(dateStr) {
   });
 }
 
-/* ------------------------- storage (Supabase or local) ------------------------- */
-
-function supa(path, options = {}) {
-  const base = cfg.supabaseUrl.replace(/\/+$/, "");
-  return fetch(`${base}/rest/v1/${path}`, {
-    ...options,
-    headers: {
-      apikey: cfg.supabaseAnonKey,
-      Authorization: `Bearer ${cfg.supabaseAnonKey}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-}
-
-async function loadExpenses() {
-  if (!CLOUD) return readLocal();
-  const res = await supa(`${TABLE}?select=id,amount,category,description,date&order=date.desc`);
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  const rows = await res.json();
-  return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
-}
-
-async function cloudInsert(exp) {
-  const res = await supa(TABLE, {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({
-      amount: exp.amount,
-      category: exp.category,
-      description: exp.description || null,
-      date: exp.date,
-    }),
-  });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  const [row] = await res.json();
-  return { ...row, amount: Number(row.amount) };
-}
-
-async function cloudUpdate(id, patch) {
-  const res = await supa(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  const [row] = await res.json();
-  return { ...row, amount: Number(row.amount) };
-}
-
-async function cloudDelete(id) {
-  const res = await supa(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    headers: { Prefer: "return=minimal" },
-  });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-}
-
-async function cloudClear() {
-  const res = await supa(`${TABLE}?date=gte.1900-01-01`, {
-    method: "DELETE",
-    headers: { Prefer: "return=minimal" },
-  });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-}
+/* ------------------------------- storage (local) ------------------------------- */
 
 function readLocal() {
   try {
@@ -432,106 +365,63 @@ function renderTrend() {
 
 /* ------------------------------- actions ------------------------------- */
 
-async function addExpense(evt) {
+function addExpense(evt) {
   evt.preventDefault();
   const amount = parseFloat($("amount").value);
   if (!(amount > 0)) return;
 
-  const exp = {
+  expenses.push({
     id: uuid(),
     amount,
     category: $("category").value,
     description: $("description").value.trim(),
     date: $("date").value,
-  };
-
-  const submit = $("expense-form").querySelector("button[type=submit]");
-  submit.disabled = true;
-  try {
-    const saved = CLOUD ? await cloudInsert(exp) : exp;
-    expenses.push(saved);
-    if (!CLOUD) saveLocal();
-    state.editing = null;
-    $("amount").value = "";
-    $("description").value = "";
-    $("amount").focus();
-    render();
-  } catch (err) {
-    showToast("Couldn't save: " + err.message, true);
-  } finally {
-    submit.disabled = false;
-  }
+  });
+  saveLocal();
+  state.editing = null;
+  $("amount").value = "";
+  $("description").value = "";
+  $("amount").focus();
+  render();
 }
 
-async function saveEdit(id, li) {
+function saveEdit(id, li) {
   const amount = parseFloat(li.querySelector(".edit-amount").value);
   if (!(amount > 0)) {
     showToast("Enter a valid amount", true);
     return;
   }
-  const patch = {
+  const idx = expenses.findIndex((e) => String(e.id) === String(id));
+  if (idx === -1) return;
+
+  expenses[idx] = {
+    ...expenses[idx],
     amount,
     category: li.querySelector(".edit-category").value,
     description: li.querySelector(".edit-note").value.trim(),
     date: li.querySelector(".edit-date").value,
   };
-
-  const idx = expenses.findIndex((e) => String(e.id) === String(id));
-  if (idx === -1) return;
-  const prev = expenses[idx];
-
-  expenses[idx] = { ...prev, ...patch };
   state.editing = null;
+  saveLocal();
   render();
-
-  try {
-    if (CLOUD) {
-      expenses[idx] = await cloudUpdate(id, { ...patch, description: patch.description || null });
-      render();
-    } else {
-      saveLocal();
-    }
-    showToast("Saved");
-  } catch (err) {
-    expenses[idx] = prev;
-    render();
-    showToast("Couldn't save: " + err.message, true);
-  }
+  showToast("Saved");
 }
 
-async function removeExpense(id) {
-  const prev = expenses;
-  const target = expenses.find((e) => String(e.id) === String(id));
-  if (!target) return;
-
+function removeExpense(id) {
+  const before = expenses.length;
   expenses = expenses.filter((e) => String(e.id) !== String(id));
+  if (expenses.length === before) return;
+  saveLocal();
   render();
-  try {
-    if (CLOUD) await cloudDelete(id);
-    else saveLocal();
-  } catch (err) {
-    expenses = prev;
-    render();
-    showToast("Couldn't delete: " + err.message, true);
-  }
 }
 
-async function clearAll() {
+function clearAll() {
   if (!expenses.length) return;
   if (!confirm("Delete all expenses? This cannot be undone.")) return;
-
-  const prev = expenses;
   expenses = [];
+  saveLocal();
   render();
-  try {
-    if (CLOUD) await cloudClear();
-    else saveLocal();
-    showToast("All expenses deleted");
-  } catch (err) {
-    expenses = prev;
-    render();
-    showToast("Couldn't clear: " + err.message, true);
-  }
+  showToast("All expenses deleted");
 }
 
 /* ------------------------------- exports ------------------------------- */
@@ -574,13 +464,6 @@ function populateSelects() {
   $("category-filter").innerHTML =
     `<option value="">All categories</option>` +
     CATEGORIES.map((c) => `<option value="${c.name}">${c.name}</option>`).join("");
-}
-
-function setStatus(kind) {
-  const el = $("sync-status");
-  el.textContent =
-    { local: "Local", cloud: "Cloud", loading: "Loading…", error: "Offline" }[kind] || "";
-  el.dataset.kind = kind;
 }
 
 let toastTimer;
@@ -659,28 +542,11 @@ function bindEvents() {
   $("clear-all").addEventListener("click", clearAll);
 }
 
-async function init() {
+function init() {
   populateSelects();
   $("date").value = todayKey();
-  $("storage-note").textContent = CLOUD
-    ? "synced with Supabase"
-    : "stored locally in your browser";
+  expenses = readLocal();
   bindEvents();
-
-  if (CLOUD) {
-    setStatus("loading");
-    try {
-      expenses = await loadExpenses();
-      setStatus("cloud");
-    } catch (err) {
-      setStatus("error");
-      expenses = readLocal();
-      if (expenses.length) showToast("Cloud unavailable — showing offline copy", true);
-    }
-  } else {
-    expenses = readLocal();
-    setStatus("local");
-  }
   render();
 }
 
