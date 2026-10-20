@@ -3,115 +3,147 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f6f4" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#14151c" media="(prefers-color-scheme: dark)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Ledger — a calm, number-first expense tracker." />
   <title>Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="progress" aria-hidden="true"><span></span></div>
+
   <nav class="navbar">
     <div class="nav-inner">
-      <span class="nav-title">Ledger</span>
+      <a class="wordmark" href="#" aria-label="Ledger home">Ledger<span class="wordmark-dot">.</span></a>
       <div class="nav-actions">
         <span id="sync-status" class="sync-pill" data-kind="local">Local</span>
-        <button id="export-csv" class="btn tinted">CSV</button>
-        <button id="export-json" class="btn tinted">JSON</button>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <button id="export-csv" class="btn ghost">CSV</button>
+        <button id="export-json" class="btn ghost">JSON</button>
       </div>
     </div>
   </nav>
 
   <main>
     <header class="hero">
-      <div class="hero-head">
-        <p class="hero-eyebrow" id="hero-range">All time</p>
-        <div class="segmented" id="range-control" role="tablist" aria-label="Time range">
-          <button class="seg is-active" data-range="all">All</button>
-          <button class="seg" data-range="month">Month</button>
-          <button class="seg" data-range="week">Week</button>
+      <div class="hero-mesh" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <div class="hero-head reveal">
+          <p class="overline" id="hero-range">All time</p>
+          <div class="segmented" id="range-control" role="tablist" aria-label="Time range">
+            <button class="seg is-active" data-range="all" role="tab" aria-selected="true">All</button>
+            <button class="seg" data-range="month" role="tab" aria-selected="false">Month</button>
+            <button class="seg" data-range="week" role="tab" aria-selected="false">Week</button>
+          </div>
         </div>
+        <p class="hero-label reveal">Total spending</p>
+        <h1 class="hero-total reveal" id="hero-total" data-counter>0.00</h1>
+        <p class="hero-sub reveal" id="hero-sub">0 transactions</p>
       </div>
-      <h1 class="hero-total" id="hero-total">0.00</h1>
-      <p class="hero-sub" id="hero-sub">0 transactions</p>
     </header>
 
-    <section class="widgets" aria-label="Summary">
-      <div class="widget">
-        <span class="widget-label">This month</span>
-        <span class="widget-value" id="stat-month">0.00</span>
+    <section class="bento reveal-group" aria-label="Summary">
+      <div class="metric metric-wide">
+        <span class="metric-label">This month</span>
+        <span class="metric-value" id="stat-month">0.00</span>
+        <span class="metric-hint">current calendar month</span>
       </div>
-      <div class="widget">
-        <span class="widget-label">Last 7 days</span>
-        <span class="widget-value" id="stat-week">0.00</span>
+      <div class="metric">
+        <span class="metric-label">Last 7 days</span>
+        <span class="metric-value" id="stat-week">0.00</span>
+        <span class="metric-hint">rolling week</span>
       </div>
-      <div class="widget">
-        <span class="widget-label">Top category</span>
-        <span class="widget-value small" id="stat-top">—</span>
+      <div class="metric">
+        <span class="metric-label">Top category</span>
+        <span class="metric-value metric-value-sm" id="stat-top">—</span>
+        <span class="metric-hint">by spend</span>
       </div>
-      <div class="widget">
-        <span class="widget-label">Average</span>
-        <span class="widget-value" id="stat-avg">0.00</span>
+      <div class="metric">
+        <span class="metric-label">Average</span>
+        <span class="metric-value" id="stat-avg">0.00</span>
+        <span class="metric-hint">per transaction</span>
       </div>
     </section>
 
-    <section class="card">
-      <h2 class="section-title">Add Expense</h2>
+    <section class="panel panel-form reveal" aria-labelledby="add-title">
+      <div class="section-head">
+        <h2 class="section-title" id="add-title">New entry</h2>
+        <span class="section-note">booked to your ledger</span>
+      </div>
       <form id="expense-form" class="form">
-        <div class="form-row amount-row">
+        <div class="field field-amount">
           <label for="amount">Amount</label>
-          <div class="control amount-control">
+          <div class="amount-wrap">
+            <span class="currency" aria-hidden="true">₹</span>
             <input id="amount" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0.00" required />
           </div>
         </div>
-        <div class="form-row">
-          <label for="category">Category</label>
-          <div class="control">
-            <select id="category" required></select>
+        <div class="form-grid">
+          <div class="field">
+            <label for="category">Category</label>
+            <div class="select-wrap">
+              <select id="category" required></select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="date">Date</label>
+            <div class="select-wrap">
+              <input id="date" type="date" required />
+            </div>
+          </div>
+          <div class="field field-span">
+            <label for="description">Note</label>
+            <input id="description" type="text" placeholder="e.g. Lunch at Antares" maxlength="80" />
           </div>
         </div>
-        <div class="form-row">
-          <label for="description">Note</label>
-          <div class="control">
-            <input id="description" type="text" placeholder="e.g. Lunch" maxlength="80" />
-          </div>
-        </div>
-        <div class="form-row">
-          <label for="date">Date</label>
-          <div class="control">
-            <input id="date" type="date" required />
-          </div>
-        </div>
-        <button type="submit" class="btn filled">Add Expense</button>
+        <button type="submit" class="btn primary"><span>Add expense</span></button>
       </form>
     </section>
 
-    <section class="card">
-      <h2 class="section-title">Statistics</h2>
-      <div class="stats-layout">
-        <div id="donut" class="donut"></div>
-        <div id="stats" class="stats"></div>
-      </div>
-    </section>
+    <div class="split">
+      <section class="panel reveal" aria-labelledby="stats-title">
+        <div class="section-head">
+          <h2 class="section-title" id="stats-title">Breakdown</h2>
+          <span class="section-note">by category</span>
+        </div>
+        <div class="stats-layout">
+          <div id="donut" class="donut"></div>
+          <div id="stats" class="stats"></div>
+        </div>
+      </section>
 
-    <section class="card">
-      <div class="section-head">
-        <h2 class="section-title">Monthly Trend</h2>
-        <span id="trend-delta" class="pill-light">—</span>
-      </div>
-      <div id="trend" class="trend"></div>
-    </section>
+      <section class="panel reveal" aria-labelledby="trend-title">
+        <div class="section-head">
+          <h2 class="section-title" id="trend-title">Monthly trend</h2>
+          <span id="trend-delta" class="pill-light">—</span>
+        </div>
+        <div id="trend" class="trend"></div>
+      </section>
+    </div>
 
-    <section class="card">
+    <section class="panel reveal" aria-labelledby="history-title">
       <div class="section-head">
-        <h2 class="section-title">History</h2>
-        <select id="category-filter" class="select-inline" aria-label="Filter by category"></select>
+        <h2 class="section-title" id="history-title">History</h2>
+        <div class="select-wrap select-compact">
+          <select id="category-filter" aria-label="Filter by category"></select>
+        </div>
       </div>
       <ul id="expense-list" class="list"></ul>
-      <p id="empty-state" class="empty">No expenses yet. Add your first one above.</p>
+      <div id="empty-state" class="empty">
+        <span class="empty-glyph" aria-hidden="true">₹</span>
+        <p>No entries yet. Your ledger starts with the first one.</p>
+      </div>
     </section>
 
     <footer class="footer">
-      <button id="clear-all" class="btn text-danger">Delete all data</button>
+      <button id="clear-all" class="btn danger">Delete all data</button>
       <p class="footer-note">Ledger · <span id="storage-note">stored locally in your browser</span></p>
     </footer>
   </main>
@@ -122,5 +154,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
-

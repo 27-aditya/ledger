@@ -4,13 +4,13 @@ const TABLE = cfg.table || "expenses";
 const LOCAL_KEY = "ledger:data:v1";
 
 const CATEGORIES = [
-  { name: "Food", color: "#FF9500" },
-  { name: "Transport", color: "#007AFF" },
-  { name: "Shopping", color: "#FF2D55" },
-  { name: "Bills", color: "#30B0C7" },
-  { name: "Entertainment", color: "#AF52DE" },
-  { name: "Health", color: "#FF3B30" },
-  { name: "Other", color: "#8E8E93" },
+  { name: "Food", color: "oklch(0.74 0.15 65)" },
+  { name: "Transport", color: "oklch(0.62 0.16 250)" },
+  { name: "Shopping", color: "oklch(0.66 0.2 350)" },
+  { name: "Bills", color: "oklch(0.68 0.11 215)" },
+  { name: "Entertainment", color: "oklch(0.6 0.2 305)" },
+  { name: "Health", color: "oklch(0.6 0.19 25)" },
+  { name: "Other", color: "oklch(0.6 0.012 265)" },
 ];
 
 const RANGE_LABELS = { all: "All time", month: "This month", week: "Last 7 days" };
@@ -23,13 +23,33 @@ let expenses = [];
 
 const $ = (id) => document.getElementById(id);
 const colorFor = (name) =>
-  (CATEGORIES.find((c) => c.name === name) || {}).color || "#8E8E93";
+  (CATEGORIES.find((c) => c.name === name) || {}).color || "oklch(0.6 0.012 265)";
 const money = (n) =>
   "₹" +
   (Number(n) || 0).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+const reducedMotion = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function animateValue(el, from, to, duration, fmt) {
+  const token = (el._animToken = (el._animToken || 0) + 1);
+  if (reducedMotion() || from === to) {
+    el.textContent = fmt(to);
+    return;
+  }
+  const start = performance.now();
+  function tick(now) {
+    if (el._animToken !== token) return;
+    const t = Math.min((now - start) / duration, 1);
+    const e = 1 - Math.pow(1 - t, 4);
+    el.textContent = fmt(from + (to - from) * e);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
 
 function toKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -171,7 +191,9 @@ function render() {
 function renderHero(rows) {
   const total = rows.reduce((s, e) => s + e.amount, 0);
   $("hero-range").textContent = RANGE_LABELS[state.range];
-  $("hero-total").textContent = money(total);
+  const el = $("hero-total");
+  animateValue(el, el._val ?? 0, total, 900, money);
+  el._val = total;
   $("hero-sub").textContent = `${rows.length} transaction${rows.length === 1 ? "" : "s"}`;
 }
 
@@ -280,7 +302,7 @@ function renderStats(rows) {
 function renderList(rows) {
   const list = $("expense-list");
   list.innerHTML = rows.map(renderRow).join("");
-  $("empty-state").style.display = rows.length ? "none" : "block";
+  $("empty-state").style.display = rows.length ? "none" : "flex";
 }
 
 function renderRow(e) {
@@ -322,7 +344,7 @@ function renderRow(e) {
   const label = e.description ? escapeHtml(e.description) : e.category;
   return `
     <li class="list-row">
-      <span class="cat-badge" style="background:${color}26;color:${color}">${e.category[0]}</span>
+      <span class="cat-badge" style="background:color-mix(in oklch, ${color}, transparent 86%);color:${color}">${e.category[0]}</span>
       <div class="row-text">
         <span class="row-title">${label}</span>
         <span class="row-sub">${e.category} · ${formatDate(e.date)}</span>
@@ -366,8 +388,8 @@ function renderTrend() {
     ` L${pts[n - 1].x.toFixed(1)} ${H} Z`;
   const dots = pts
     .map(
-      (p) =>
-        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--card)" stroke="var(--blue)" stroke-width="2"/>`
+      (p, i) =>
+        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="var(--surface)" stroke="var(--accent-bright)" stroke-width="2" style="animation-delay:${(0.8 + i * 0.08).toFixed(2)}s"/>`
     )
     .join("");
 
@@ -375,19 +397,24 @@ function renderTrend() {
     <svg class="trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Monthly spending trend">
       <defs>
         <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="var(--blue)" stop-opacity="0.30"/>
-          <stop offset="100%" stop-color="var(--blue)" stop-opacity="0"/>
+          <stop offset="0%" stop-color="var(--accent-bright)" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="var(--accent-bright)" stop-opacity="0"/>
         </linearGradient>
       </defs>
       <path d="${area}" fill="url(#trendFill)"/>
-      <path d="${line}" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      ${dots}
+      <path class="trend-line" d="${line}" fill="none" stroke="var(--accent-bright)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <g class="trend-dots">${dots}</g>
     </svg>
     <div class="trend-labels">
       ${months
         .map((m, i) => `<span${i === n - 1 ? ' class="trend-now"' : ""}>${m.label}</span>`)
         .join("")}
     </div>`;
+
+  const linePath = $("trend").querySelector(".trend-line");
+  if (linePath && linePath.getTotalLength) {
+    linePath.style.setProperty("--len", linePath.getTotalLength());
+  }
 
   const thisM = months[n - 1].total;
   const lastM = months[n - 2] ? months[n - 2].total : 0;
@@ -619,7 +646,11 @@ function bindEvents() {
     state.range = seg.dataset.range;
     document
       .querySelectorAll("#range-control .seg")
-      .forEach((s) => s.classList.toggle("is-active", s === seg));
+      .forEach((s) => {
+        const active = s === seg;
+        s.classList.toggle("is-active", active);
+        s.setAttribute("aria-selected", active ? "true" : "false");
+      });
     render();
   });
 
