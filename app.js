@@ -1,4 +1,5 @@
 const LOCAL_KEY = "ledger:data:v1";
+const KEY_KEY = "ledger:cloud-key:v1";
 
 const CATEGORIES = [
   { name: "Food", color: "oklch(0.74 0.15 65)" },
@@ -74,8 +75,12 @@ function escapeHtml(str) {
 }
 
 function uuid() {
-  return (crypto.randomUUID && crypto.randomUUID()) ||
-    `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 function formatDate(dateStr) {
@@ -86,7 +91,24 @@ function formatDate(dateStr) {
   });
 }
 
-/* ------------------------------- storage (local) ------------------------------- */
+/* ------------------------------- storage ------------------------------- */
+
+const CFG = window.LEDGER_SUPABASE || {};
+const cloud =
+  window.supabase && CFG.url && CFG.anonKey
+    ? window.supabase.createClient(CFG.url, CFG.anonKey)
+    : null;
+const cloudConfigured = () => Boolean(cloud);
+const cloudKey = () => localStorage.getItem(KEY_KEY) || "";
+const remoteEnabled = () => Boolean(cloud) && Boolean(cloudKey());
+
+const fromRow = (r) => ({
+  id: r.id,
+  amount: Number(r.amount),
+  category: r.category,
+  description: r.description || "",
+  date: r.date,
+});
 
 function readLocal() {
   try {
@@ -97,6 +119,125 @@ function readLocal() {
 }
 function saveLocal() {
   localStorage.setItem(LOCAL_KEY, JSON.stringify(expenses));
+}
+
+async function rpc(name, params = {}) {
+  const { data, error } = await cloud.rpc(name, { p_key: cloudKey(), ...params });
+  if (error) throw error;
+  return data;
+}
+
+let lastCloudError = null;
+
+async function fetchRemote() {
+  if (!remoteEnabled()) return null;
+  try {
+    const rows = await rpc("ledger_list");
+    lastCloudError = null;
+    return (rows || []).map(fromRow);
+  } catch (err) {
+    console.error(err);
+    lastCloudError = err;
+    return null;
+  }
+}
+
+const unauthorized = () =>
+  Boolean(lastCloudError) &&
+  (lastCloudError.code === "28000" ||
+    /unauthorized|invalid api key/i.test(lastCloudError.message || ""));
+
+async function loadRemote() {
+  const rows = await fetchRemote();
+  if (!rows) return null;
+  const changed = JSON.stringify(rows) !== JSON.stringify(expenses);
+  expenses = rows;
+  saveLocal();
+  return changed;
+}
+
+async function cloudAdd(expense) {
+  if (!remoteEnabled()) return true;
+  try {
+    await rpc("ledger_add", {
+      p_id: expense.id,
+      p_amount: expense.amount,
+      p_category: expense.category,
+      p_description: expense.description || "",
+      p_date: expense.date,
+      p_source: "web",
+    });
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}
+
+async function cloudUpdate(expense) {
+  if (!remoteEnabled()) return true;
+  try {
+    await rpc("ledger_update", {
+      p_id: expense.id,
+      p_amount: expense.amount,
+      p_category: expense.category,
+      p_description: expense.description || "",
+      p_date: expense.date,
+    });
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}
+
+async function cloudDelete(id) {
+  if (!remoteEnabled()) return true;
+  try {
+    await rpc("ledger_delete", { p_id: id });
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}
+
+async function cloudClear() {
+  if (!remoteEnabled()) return true;
+  try {
+    await rpc("ledger_clear");
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}
+
+async function uploadPendingLocal(local) {
+  const remoteIds = new Set(expenses.map((e) => String(e.id)));
+  const pending = local.filter((e) => !remoteIds.has(String(e.id)));
+  const uploaded = [];
+
+  for (const e of pending) {
+    if (await cloudAdd(e)) uploaded.push(e);
+  }
+  return { uploaded, failed: pending.length - uploaded.length };
+}
+
+let polling = false;
+function startPolling() {
+  if (!remoteEnabled() || polling) return;
+  polling = true;
+  setInterval(async () => {
+    if (document.hidden || state.editing) return;
+    const changed = await loadRemote();
+    if (changed) render();
+  }, 30000);
+  document.addEventListener("visibilitychange", async () => {
+    if (document.hidden || state.editing || !remoteEnabled()) return;
+    const changed = await loadRemote();
+    if (changed) render();
+  });
 }
 
 /* ------------------------------- rendering ------------------------------- */
@@ -365,27 +506,35 @@ function renderTrend() {
 
 /* ------------------------------- actions ------------------------------- */
 
-function addExpense(evt) {
+async function addExpense(evt) {
   evt.preventDefault();
   const amount = parseFloat($("amount").value);
   if (!(amount > 0)) return;
 
-  expenses.push({
+  const expense = {
     id: uuid(),
     amount,
     category: $("category").value,
     description: $("description").value.trim(),
     date: $("date").value,
-  });
+  };
+  expenses.push(expense);
   saveLocal();
   state.editing = null;
   $("amount").value = "";
   $("description").value = "";
   $("amount").focus();
   render();
+
+  if (!(await cloudAdd(expense))) {
+    expenses = expenses.filter((e) => e.id !== expense.id);
+    saveLocal();
+    render();
+    showToast("Couldn't sync — entry removed", true);
+  }
 }
 
-function saveEdit(id, li) {
+async function saveEdit(id, li) {
   const amount = parseFloat(li.querySelector(".edit-amount").value);
   if (!(amount > 0)) {
     showToast("Enter a valid amount", true);
@@ -394,34 +543,59 @@ function saveEdit(id, li) {
   const idx = expenses.findIndex((e) => String(e.id) === String(id));
   if (idx === -1) return;
 
-  expenses[idx] = {
+  const previous = { ...expenses[idx] };
+  const next = {
     ...expenses[idx],
     amount,
     category: li.querySelector(".edit-category").value,
     description: li.querySelector(".edit-note").value.trim(),
     date: li.querySelector(".edit-date").value,
   };
+  expenses[idx] = next;
   state.editing = null;
   saveLocal();
   render();
   showToast("Saved");
+
+  if (!(await cloudUpdate(next))) {
+    expenses = expenses.map((e) => (String(e.id) === String(id) ? previous : e));
+    saveLocal();
+    render();
+    showToast("Couldn't sync — change reverted", true);
+  }
 }
 
-function removeExpense(id) {
-  const before = expenses.length;
+async function removeExpense(id) {
+  const removed = expenses.find((e) => String(e.id) === String(id));
+  if (!removed) return;
   expenses = expenses.filter((e) => String(e.id) !== String(id));
-  if (expenses.length === before) return;
   saveLocal();
   render();
+
+  if (!(await cloudDelete(id))) {
+    expenses.push(removed);
+    saveLocal();
+    render();
+    showToast("Couldn't sync — entry restored", true);
+  }
 }
 
-function clearAll() {
+async function clearAll() {
   if (!expenses.length) return;
   if (!confirm("Delete all expenses? This cannot be undone.")) return;
+
+  const previous = expenses;
   expenses = [];
   saveLocal();
   render();
   showToast("All expenses deleted");
+
+  if (!(await cloudClear())) {
+    expenses = previous;
+    saveLocal();
+    render();
+    showToast("Couldn't sync — data restored", true);
+  }
 }
 
 /* ------------------------------- exports ------------------------------- */
@@ -540,14 +714,111 @@ function bindEvents() {
   $("export-csv").addEventListener("click", exportCSV);
   $("export-json").addEventListener("click", exportJSON);
   $("clear-all").addEventListener("click", clearAll);
+
+  $("cloud-btn").addEventListener("click", openCloudDialog);
+  $("cloud-cancel").addEventListener("click", () => $("cloud-dialog").close());
+  $("cloud-form").addEventListener("submit", connectCloud);
 }
 
-function init() {
+function updateStorageNote() {
+  $("storage-note").textContent = remoteEnabled()
+    ? "synced with Supabase"
+    : cloudConfigured()
+    ? "local only — cloud not connected"
+    : "stored locally in your browser";
+}
+
+function openCloudDialog(message = "") {
+  $("cloud-error").textContent = message;
+  $("cloud-key").value = cloudKey();
+  const dlg = $("cloud-dialog");
+  if (!dlg.open) dlg.showModal();
+}
+
+async function connectCloud(evt) {
+  evt.preventDefault();
+  const key = $("cloud-key").value.trim();
+  if (!key) return;
+
+  $("cloud-error").textContent = "";
+  const local = readLocal();
+  localStorage.setItem(KEY_KEY, key);
+
+  const changed = await loadRemote();
+  if (changed === null) {
+    localStorage.removeItem(KEY_KEY);
+    $("cloud-error").textContent = unauthorized()
+      ? "That key was rejected."
+      : "Couldn't reach Supabase. Check your connection.";
+    return;
+  }
+
+  const { uploaded, failed } = await uploadPendingLocal(local);
+  if (uploaded.length) {
+    expenses = [...expenses, ...uploaded];
+    saveLocal();
+    render();
+  } else if (changed) {
+    render();
+  }
+
+  $("cloud-dialog").close();
+  updateStorageNote();
+  startPolling();
+  showToast(
+    failed
+      ? `${failed} local ${failed === 1 ? "entry" : "entries"} didn't upload`
+      : "Cloud connected",
+    Boolean(failed)
+  );
+}
+
+async function init() {
   populateSelects();
   $("date").value = todayKey();
   expenses = readLocal();
   bindEvents();
   render();
+
+  $("cloud-btn").hidden = !cloudConfigured();
+  updateStorageNote();
+  if (!cloudConfigured()) return;
+
+  if (!remoteEnabled()) {
+    openCloudDialog();
+    return;
+  }
+
+  const local = readLocal();
+  const changed = await loadRemote();
+  if (changed === null) {
+    if (unauthorized()) {
+      localStorage.removeItem(KEY_KEY);
+      updateStorageNote();
+      openCloudDialog("Your saved key was rejected. Paste it again.");
+    } else {
+      showToast("Cloud unreachable — showing your local copy", true);
+    }
+    return;
+  }
+
+  const { uploaded, failed } = await uploadPendingLocal(local);
+  if (uploaded.length) {
+    expenses = [...expenses, ...uploaded];
+    saveLocal();
+    render();
+  } else if (changed) {
+    render();
+  }
+
+  updateStorageNote();
+  startPolling();
+  if (failed) {
+    showToast(
+      `${failed} local ${failed === 1 ? "entry" : "entries"} didn't upload`,
+      true
+    );
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);

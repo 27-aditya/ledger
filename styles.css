@@ -1254,3 +1254,83 @@ main > .panel,
     opacity: 1;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Cloud sync dialog
+   -------------------------------------------------------------------------- */
+.cloud-dialog {
+  width: min(460px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  padding: clamp(22px, 4vw, 30px);
+  box-shadow: 0 30px 80px oklch(0 0 0 / 0.3);
+}
+.cloud-dialog::backdrop {
+  background: oklch(0 0 0 / 0.45);
+  backdrop-filter: blur(4px);
+}
+.cloud-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cloud-form .section-head {
+  margin-bottom: 0;
+}
+.cloud-copy {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.cloud-hint {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  color: var(--ink-4);
+}
+.cloud-dialog input {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--border);
+  border-radius: 0;
+  outline: none;
+  padding: 8px 0;
+  width: 100%;
+  transition: border-color 0.3s var(--ease-out);
+}
+.cloud-dialog input:focus {
+  border-color: var(--accent);
+}
+.cloud-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cloud-actions .btn.filled {
+  width: auto;
+  margin-top: 0;
+}
+.cloud-error {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--negative);
+}
+.cloud-error:empty {
+  display: none;
+}
+.cloud-dialog {
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}

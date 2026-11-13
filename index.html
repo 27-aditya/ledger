@@ -23,6 +23,7 @@
     <div class="nav-inner">
       <a class="wordmark" href="#" aria-label="Ledger home">Ledger<span class="wordmark-dot">.</span></a>
       <div class="nav-actions">
+        <button id="cloud-btn" class="btn ghost" hidden>Sync</button>
         <button id="export-csv" class="btn ghost">CSV</button>
         <button id="export-json" class="btn ghost">JSON</button>
       </div>
@@ -148,6 +149,37 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <dialog id="cloud-dialog" class="cloud-dialog">
+    <form id="cloud-form" class="cloud-form">
+      <div class="section-head">
+        <h2 class="section-title">Cloud sync</h2>
+        <span class="section-note">shortcut → ledger</span>
+      </div>
+      <p class="cloud-copy">
+        Paste the ledger key from your Supabase setup. It stays in this browser and is never
+        bundled with the site.
+      </p>
+      <div class="field">
+        <label for="cloud-key">Ledger key</label>
+        <input
+          id="cloud-key"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="paste your key"
+        />
+      </div>
+      <p class="cloud-hint">Use the same key in your iPhone Shortcut. Leave it blank to stay local.</p>
+      <p id="cloud-error" class="cloud-error" role="alert"></p>
+      <div class="cloud-actions">
+        <button type="button" id="cloud-cancel" class="btn">Not now</button>
+        <button type="submit" class="btn filled compact">Connect</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
