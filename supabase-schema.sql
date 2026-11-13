@@ -199,7 +199,7 @@ do $$
 declare
   v_key text := 'PASTE_YOUR_KEY_HERE';
 begin
-  if v_key = 'PASTE_YOUR_KEY_HERE' or length(v_key) < 24 then
+  if length(v_key) < 24 then
     raise exception 'Set v_key to a long random key before running this file (see the header).';
   end if;
 
