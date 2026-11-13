@@ -101,6 +101,14 @@
             <label for="description">Note</label>
             <input id="description" type="text" placeholder="e.g. Lunch at Antares" maxlength="80" />
           </div>
+          <div class="field field-span field-split">
+            <label for="split">Split into</label>
+            <div class="split-row">
+              <input id="split" type="number" min="1" max="100" step="1" inputmode="numeric" value="1" />
+              <span class="split-unit">parts</span>
+              <span id="split-hint" class="split-hint">Not split</span>
+            </div>
+          </div>
         </div>
         <button type="submit" class="btn primary"><span>Add expense</span></button>
       </form>

@@ -629,6 +629,54 @@ main > .panel,
   grid-column: 1 / -1;
 }
 
+.field-split .split-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 8px;
+  transition: border-color 0.3s var(--ease-out);
+}
+.field-split .split-row:focus-within {
+  border-color: var(--accent);
+}
+.field-split input {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  width: 64px;
+  font-variant-numeric: tabular-nums;
+}
+.field-split input::-webkit-outer-spin-button,
+.field-split input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.field-split input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.split-unit {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.split-hint {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
 .form-grid input:not([type="number"]),
 .select-wrap select,
 .select-wrap input {
@@ -1047,6 +1095,12 @@ main > .panel,
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.edit-field-wide {
+  grid-column: 1 / -1;
+}
+.edit-split {
+  max-width: 120px;
 }
 .edit-field span {
   font-family: var(--font-mono);

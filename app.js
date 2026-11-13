@@ -28,6 +28,7 @@ const money = (n) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+const splitParts = (value) => Math.max(1, Math.min(100, Math.trunc(Number(value) || 1)));
 
 const reducedMotion = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -108,11 +109,15 @@ const fromRow = (r) => ({
   category: r.category,
   description: r.description || "",
   date: r.date,
+  split_count: splitParts(r.split_count),
 });
 
 function readLocal() {
   try {
-    return JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+    const rows = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+    return Array.isArray(rows)
+      ? rows.map((e) => ({ ...e, split_count: splitParts(e.split_count) }))
+      : [];
   } catch {
     return [];
   }
@@ -166,6 +171,7 @@ async function cloudAdd(expense) {
       p_description: expense.description || "",
       p_date: expense.date,
       p_source: "web",
+      p_split_count: splitParts(expense.split_count),
     });
     return true;
   } catch (err) {
@@ -183,6 +189,7 @@ async function cloudUpdate(expense) {
       p_category: expense.category,
       p_description: expense.description || "",
       p_date: expense.date,
+      p_split_count: splitParts(expense.split_count),
     });
     return true;
   } catch (err) {
@@ -380,7 +387,9 @@ function renderList(rows) {
 }
 
 function renderRow(e) {
-  const color = colorFor(e.category);
+  const category = e.category || "Other";
+  const color = colorFor(category);
+  const split = splitParts(e.split_count);
 
   if (String(e.id) === String(state.editing)) {
     return `
@@ -395,7 +404,7 @@ function renderRow(e) {
             <select class="edit-category">
               ${CATEGORIES.map(
                 (c) =>
-                  `<option value="${c.name}"${c.name === e.category ? " selected" : ""}>${c.name}</option>`
+                  `<option value="${c.name}"${c.name === category ? " selected" : ""}>${c.name}</option>`
               ).join("")}
             </select>
           </label>
@@ -407,6 +416,10 @@ function renderRow(e) {
             <span>Date</span>
             <input class="edit-date" type="date" value="${e.date}">
           </label>
+          <label class="edit-field edit-field-wide">
+            <span>Split into</span>
+            <input class="edit-split" type="number" min="1" max="100" step="1" inputmode="numeric" value="${split}">
+          </label>
         </div>
         <div class="edit-actions">
           <button class="btn edit-cancel">Cancel</button>
@@ -415,13 +428,14 @@ function renderRow(e) {
       </li>`;
   }
 
-  const label = e.description ? escapeHtml(e.description) : e.category;
+  const label = e.description ? escapeHtml(e.description) : escapeHtml(category);
+  const splitText = split > 1 ? ` · ${split} parts · ${money(e.amount / split)} each` : "";
   return `
     <li class="list-row">
-      <span class="cat-badge" style="background:color-mix(in oklch, ${color}, transparent 86%);color:${color}">${e.category[0]}</span>
+      <span class="cat-badge" style="background:color-mix(in oklch, ${color}, transparent 86%);color:${color}">${escapeHtml(category[0] || "?")}</span>
       <div class="row-text">
         <span class="row-title">${label}</span>
-        <span class="row-sub">${e.category} · ${formatDate(e.date)}</span>
+        <span class="row-sub">${escapeHtml(category)} · ${formatDate(e.date)}${splitText}</span>
       </div>
       <span class="row-amount">${money(e.amount)}</span>
       <div class="row-actions">
@@ -506,6 +520,19 @@ function renderTrend() {
 
 /* ------------------------------- actions ------------------------------- */
 
+function updateSplitHint() {
+  const amount = parseFloat($("amount").value);
+  const parts = splitParts($("split").value);
+  const hint = $("split-hint");
+  if (parts <= 1) {
+    hint.textContent = "Not split";
+  } else if (amount > 0) {
+    hint.textContent = `${money(amount / parts)} each`;
+  } else {
+    hint.textContent = `${parts} parts`;
+  }
+}
+
 async function addExpense(evt) {
   evt.preventDefault();
   const amount = parseFloat($("amount").value);
@@ -517,12 +544,15 @@ async function addExpense(evt) {
     category: $("category").value,
     description: $("description").value.trim(),
     date: $("date").value,
+    split_count: splitParts($("split").value),
   };
   expenses.push(expense);
   saveLocal();
   state.editing = null;
   $("amount").value = "";
   $("description").value = "";
+  $("split").value = "1";
+  updateSplitHint();
   $("amount").focus();
   render();
 
@@ -550,6 +580,7 @@ async function saveEdit(id, li) {
     category: li.querySelector(".edit-category").value,
     description: li.querySelector(".edit-note").value.trim(),
     date: li.querySelector(".edit-date").value,
+    split_count: splitParts(li.querySelector(".edit-split").value),
   };
   expenses[idx] = next;
   state.editing = null;
@@ -617,9 +648,14 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 function exportCSV() {
   if (!expenses.length) return showToast("Nothing to export yet", true);
   const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
-  const lines = [["Date", "Category", "Description", "Amount"].join(",")];
+  const lines = [["Date", "Category", "Description", "Amount", "Split parts", "Per part"].join(",")];
   for (const e of [...expenses].sort((a, b) => (a.date < b.date ? -1 : 1))) {
-    lines.push([e.date, e.category, e.description || "", e.amount.toFixed(2)].map(esc).join(","));
+    const split = splitParts(e.split_count);
+    lines.push(
+      [e.date, e.category, e.description || "", e.amount.toFixed(2), split, (e.amount / split).toFixed(2)]
+        .map(esc)
+        .join(",")
+    );
   }
   download(`ledger-${stamp()}.csv`, lines.join("\n"), "text/csv;charset=utf-8");
 }
@@ -654,6 +690,12 @@ function showToast(msg, isError = false) {
 
 function bindEvents() {
   $("expense-form").addEventListener("submit", addExpense);
+  $("amount").addEventListener("input", updateSplitHint);
+  $("split").addEventListener("input", updateSplitHint);
+  $("split").addEventListener("change", () => {
+    $("split").value = splitParts($("split").value);
+    updateSplitHint();
+  });
 
   $("expense-list").addEventListener("click", (e) => {
     const edit = e.target.closest(".row-edit");
@@ -776,6 +818,7 @@ async function connectCloud(evt) {
 async function init() {
   populateSelects();
   $("date").value = todayKey();
+  updateSplitHint();
   expenses = readLocal();
   bindEvents();
   render();
